@@ -25,7 +25,7 @@ SOFTWARE.
 (function (angular) {
 	'use strict';
 	
-	angular.module('gm.datepickerMultiSelect', ['ui.bootstrap'])
+	angular.module('gm.datepickerMultiSelect', ['ui.bootstrap.datepickerPopup'])
 	.filter('gmISODate', function() {
 	  return function(date) {
 	    return date.toISOString().split("T")[0];
