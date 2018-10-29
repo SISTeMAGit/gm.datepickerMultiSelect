@@ -25,127 +25,131 @@ SOFTWARE.
 'use strict';
 
 angular.module('gm.datepickerMultiSelect', ['ui.bootstrap.datepickerPopup'])
-.filter('gmISODate', function() {
-  return function(date) {
-	return date.toISOString().split("T")[0];
-  }
-})
-.config(['$provide', '$injector', function ($provide, $injector) {
-  
-  var useUTC = false;
+    .filter('gmISODate', function () {
+        return function (date) {
+            return date.toISOString().split("T")[0];
+        };
+    })
+    .config(['$provide', '$injector', function ($provide, $injector) {
 
-	// extending datepicker (access to attributes and app scope through $parent)
-	var datepickerDelegate = function ($delegate, $filter) {
-		var directive = $delegate[0];
+        var useUTC = false;
 
-		// Override compile
-		var link = directive.link;
+        // extending datepicker (access to attributes and app scope through $parent)
+        var datepickerDelegate = function ($delegate, $filter) {
+            var directive = $delegate[0];
 
-		directive.compile = function () {
-			return function (scope, element, attrs, ctrls) {
-				link.apply(this, arguments);
+            // Override compile
+            var link = directive.link;
 
-				scope.selectedDates = [];
-				scope.selectRange;
+            directive.compile = function () {
+                return function (scope, element, attrs, ctrls) {
+                    link.apply(this, arguments);
 
-				scope.$parent.$watchCollection(attrs.multiSelect, function (newVal) {
-					scope.selectedDates = newVal || [];
-				});
+                    scope.selectedDates = [];
+                    scope.selectRange;
 
-				attrs.$observe('selectRange', function (newVal) {
-					scope.selectRange = !!newVal && newVal !== "false";
-				});
+                    scope.$parent.$watchCollection(attrs.multiSelect, function (newVal) {
+                        scope.selectedDates = newVal || [];
+                    });
 
-				var ngModelCtrl = ctrls[1];
+                    attrs.$observe('selectRange', function (newVal) {
+                        // scope.selectRange = !!newVal && newVal !== "false";
+                        scope.selectRange = newVal;
+                    });
 
-				ngModelCtrl.$viewChangeListeners.push(function() {
-					var newVal = scope.$parent.$eval(attrs.ngModel);
-					if(!newVal)
-						return;
-						
-					var dateVal = Date.parse($filter('gmISODate')(newVal)), //useUTC ? new Date(newVal).setUTCHours(0, 0, 0, 0) : new Date(newVal).setHours(0, 0, 0, 0),
-						selectedDates = scope.selectedDates;
+                    var ngModelCtrl = ctrls[1];
 
-					if (scope.selectRange) {
-						// reset range
-						if (!selectedDates.length || selectedDates.length > 1 || selectedDates[0] == dateVal)
-							return selectedDates.splice(0, selectedDates.length, dateVal);
+                    ngModelCtrl.$viewChangeListeners.push(function () {
+                        var newVal = scope.$parent.$eval(attrs.ngModel);
+                        if (!newVal)
+                            return;
 
-						selectedDates.push(dateVal);
+                        var dateVal = Date.parse($filter('gmISODate')(newVal)), //useUTC ? new Date(newVal).setUTCHours(0, 0, 0, 0) : new Date(newVal).setHours(0, 0, 0, 0),
+                            selectedDates = scope.selectedDates;
 
-						var tempVal = Math.min.apply(null, selectedDates);
-						var maxVal = Math.max.apply(null, selectedDates);
+                        if (scope.selectRange === 'range') {
+                            // reset range
+                            if (!selectedDates.length || selectedDates.length > 1 || selectedDates[0] == dateVal)
+                                return selectedDates.splice(0, selectedDates.length, dateVal);
 
-						// Start on the next day to prevent duplicating the	first date
-						tempVal += 1000 * 60 * 60 * 24;
-						while (tempVal < maxVal) {
-							selectedDates.push(tempVal);
+                            selectedDates.push(dateVal);
 
-							// Set a day ahead after pushing to prevent duplicating last date
-							tempVal += 1000 * 60 * 60 * 24;
-						}
-					} else {
-						if (selectedDates.indexOf(dateVal) < 0) {
-							selectedDates.push(dateVal);
-						} else {
-							selectedDates.splice(selectedDates.indexOf(dateVal), 1);
-						}
-					}
-				});
-			};
-		};
+                            var tempVal = Math.min.apply(null, selectedDates);
+                            var maxVal = Math.max.apply(null, selectedDates);
 
-		return $delegate;
-	};
+                            // Start on the next day to prevent duplicating the	first date
+                            tempVal += 1000 * 60 * 60 * 24;
+                            while (tempVal < maxVal) {
+                                selectedDates.push(tempVal);
 
-	if ($injector.has('datepickerDirective'))
-		$provide.decorator('datepickerDirective', ['$delegate', '$filter', datepickerDelegate]);
+                                // Set a day ahead after pushing to prevent duplicating last date
+                                tempVal += 1000 * 60 * 60 * 24;
+                            }
+                        } else if(scope.selectRange === 'single') {
+                            selectedDates.splice(0, selectedDates.length-1);
+                            selectedDates[0] = dateVal;
+                        } else {
+                            if (selectedDates.indexOf(dateVal) < 0) {
+                                selectedDates.push(dateVal);
+                            } else {
+                                selectedDates.splice(selectedDates.indexOf(dateVal), 1);
+                            }
+                        }
+                    });
+                };
+            };
 
-	if ($injector.has('uibDatepickerDirective'))
-		$provide.decorator('uibDatepickerDirective', ['$delegate', '$filter', datepickerDelegate]);
+            return $delegate;
+        };
 
-	// extending daypicker (access to day and datepicker scope through $parent)
-	var daypickerDelegate = function ($delegate, $filter) {
-		var directive = $delegate[0];
+        if ($injector.has('datepickerDirective'))
+            $provide.decorator('datepickerDirective', ['$delegate', '$filter', datepickerDelegate]);
 
-		// Override compile
-		var link = directive.link;
+        if ($injector.has('uibDatepickerDirective'))
+            $provide.decorator('uibDatepickerDirective', ['$delegate', '$filter', datepickerDelegate]);
 
-		directive.compile = function () {
-			return function (scope, element, attrs, ctrls) {
-				link.apply(this, arguments);
+        // extending daypicker (access to day and datepicker scope through $parent)
+        var daypickerDelegate = function ($delegate, $filter) {
+            var directive = $delegate[0];
 
-				scope.$parent.$watchCollection('selectedDates', update);
+            // Override compile
+            var link = directive.link;
 
-				/*
-					Fires when date is selected or when month is changed.
-					UI bootstrap versions before 0.14.0 had just one controller DatepickerController,
-					now they have UibDatepickerController, UibDaypickerController and DatepickerController
-					see more on https://github.com/angular-ui/bootstrap/commit/44354f67e55c571df28b09e26a314a845a3b7397?diff=split#diff-6240fc17e068eaeef7095937a1d63eaeL251
-					and https://github.com/angular-ui/bootstrap/commit/44354f67e55c571df28b09e26a314a845a3b7397?diff=split#diff-6240fc17e068eaeef7095937a1d63eaeR462
-				*/
-				var ctrl = angular.isArray(ctrls) ? ctrls[0] : ctrls;
-				scope.$watch(function () {
-					return ctrl.activeDate.getTime();
-				}, update);
-				
-				function update() {
-				  console.log('update');
-					angular.forEach(scope.rows, function (row) {
-						angular.forEach(row, function (day) {
-							day.selected = scope.selectedDates.indexOf(Date.parse($filter('gmISODate')(day.date))) > -1;
-						});
-					});
-				}
-			};
-		};
+            directive.compile = function () {
+                return function (scope, element, attrs, ctrls) {
+                    link.apply(this, arguments);
 
-		return $delegate;
-	};
+                    scope.$parent.$watchCollection('selectedDates', update);
 
-	if ($injector.has('daypickerDirective'))
-		$provide.decorator('daypickerDirective', ['$delegate', '$filter', daypickerDelegate]);
+                    /*
+                        Fires when date is selected or when month is changed.
+                        UI bootstrap versions before 0.14.0 had just one controller DatepickerController,
+                        now they have UibDatepickerController, UibDaypickerController and DatepickerController
+                        see more on https://github.com/angular-ui/bootstrap/commit/44354f67e55c571df28b09e26a314a845a3b7397?diff=split#diff-6240fc17e068eaeef7095937a1d63eaeL251
+                        and https://github.com/angular-ui/bootstrap/commit/44354f67e55c571df28b09e26a314a845a3b7397?diff=split#diff-6240fc17e068eaeef7095937a1d63eaeR462
+                    */
+                    var ctrl = angular.isArray(ctrls) ? ctrls[0] : ctrls;
+                    scope.$watch(function () {
+                        return ctrl.activeDate.getTime();
+                    }, update);
 
-	if ($injector.has('uibDaypickerDirective'))
-		$provide.decorator('uibDaypickerDirective', ['$delegate', '$filter', daypickerDelegate]);
-}]);
+                    function update() {
+                        console.log('update');
+                        angular.forEach(scope.rows, function (row) {
+                            angular.forEach(row, function (day) {
+                                day.selected = scope.selectedDates.indexOf(Date.parse($filter('gmISODate')(day.date))) > -1;
+                            });
+                        });
+                    }
+                };
+            };
+
+            return $delegate;
+        };
+
+        if ($injector.has('daypickerDirective'))
+            $provide.decorator('daypickerDirective', ['$delegate', '$filter', daypickerDelegate]);
+
+        if ($injector.has('uibDaypickerDirective'))
+            $provide.decorator('uibDaypickerDirective', ['$delegate', '$filter', daypickerDelegate]);
+    }]);
